@@ -55,23 +55,27 @@ data_verify(data_package_t *package) {
 //
 data_header_t*
 data_make_header(
-	unsigned long d,
-	unsigned long i,
-	unsigned long t,
-	unsigned long c,
-	unsigned long o,
-	unsigned char l,
+	unsigned long dst,
+	unsigned long id,
+	unsigned long ts,
+	unsigned long chksum,
+	unsigned long origin,
+	unsigned char length,
 	unsigned char ttl,
+	unsigned char netid,
+	data_header_flag_t flags,
 	...
 ) {
 	data_header_t *header = calloc(1, sizeof(data_header_t));
-	header->container.values.v1.destination = d;
-	header->container.values.v1.identifier = i;
-	header->container.values.v1.timestamp = t;
-	header->container.values.v1.checksum = c;
-	header->container.values.v1.origin = o;
-	header->container.values.v1.length = l;
+	header->container.values.v1.destination = dst;
+	header->container.values.v1.identifier = id;
+	header->container.values.v1.timestamp = ts;
+	header->container.values.v1.checksum = chksum;
+	header->container.values.v1.origin = origin;
+	header->container.values.v1.length = length;
 	header->container.values.v1.ttl = ttl;
+	header->container.values.v1.netid = netid;
+	header->container.values.v1.flags = flags;
 	return header;
 }
 
@@ -103,6 +107,10 @@ make_data(
 					.origin      = src,
 					.length      = sizeof(data_payload_t),
 					.ttl         = ttl,
+					.netid       = 0xFF,
+					.flags       = {
+						.data = DATA_HEADER_FLAG_NONE,
+					},
 				},
 				//.v2 = {
 				//	.id   = 0x0,

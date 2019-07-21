@@ -19,11 +19,37 @@ extern "C" {
 #include <unistd.h>
 
 /*
-typedef union {
+typedef enum {
 	false,
 	true,
 } bool;
 */
+
+typedef enum DataHeaderFlags {
+	DATA_HEADER_FLAG_NONE = 0x00,
+	DATA_HEADER_FLAG_A    = (1 << 0),
+	DATA_HEADER_FLAG_B    = (1 << 1),
+	DATA_HEADER_FLAG_C    = (1 << 2),
+	DATA_HEADER_FLAG_D    = (1 << 3),
+	DATA_HEADER_FLAG_E    = (1 << 4),
+	DATA_HEADER_FLAG_F    = (1 << 5),
+	DATA_HEADER_FLAG_G    = (1 << 6),
+	DATA_HEADER_FLAG_H    = (1 << 7),
+} data_header_flag_e;
+
+typedef union DataHeaderFlag {
+	struct {
+		unsigned flag_a: 1;
+		unsigned flag_b: 1;
+		unsigned flag_c: 1;
+		unsigned flag_d: 1;
+		unsigned flag_e: 1;
+		unsigned flag_f: 1;
+		unsigned flag_g: 1;
+		unsigned flag_h: 1;
+	} bit;
+	unsigned char data;
+} data_header_flag_t;
 
 typedef union DataHeader {
 	struct DataHeaderContainer {
@@ -38,6 +64,8 @@ typedef union DataHeader {
 				unsigned long origin;
 				unsigned char length;
 				unsigned char ttl;
+				unsigned char netid;
+				data_header_flag_t flags;
 			} v1;
 			struct DataHeaderV2 {
 				unsigned long id;
