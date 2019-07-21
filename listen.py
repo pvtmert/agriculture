@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, sys, time, socket
+import os, sys, time, socket, struct
 
 #ADDR = "224.0.0.1"
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 4321
@@ -28,5 +28,13 @@ while True:
 		data=hexdump(data),
 		length=len(data),
 	))
-	sock.sendto("".join([ "hellobok" ] * 10).encode(), addr)
+	mbuffer = bytearray(32)
+	struct.pack_into("<LLLLL", mbuffer, 0x0,
+		0x10000001,
+		0x12345678,
+		0x87654321,
+		0xABC00DEF,
+		int(15E6),
+	)
+	sock.sendto(mbuffer, addr)
 	continue

@@ -27,8 +27,13 @@ typedef enum {
 */
 
 typedef struct DataConfig {
-	unsigned short ver;
-	unsigned short sub;
+	union {
+		struct {
+			unsigned short ver;
+			unsigned short sub;
+		};
+		unsigned long target;
+	};
 	struct DataConfigV1 {
 		unsigned long save;
 		unsigned long mode;
@@ -87,7 +92,7 @@ typedef union DataHeader {
 				unsigned char length;
 				unsigned char ttl;
 				unsigned char netid;
-				data_header_flag_t flags;
+				unsigned char flags;
 			} v1;
 			struct DataHeaderV2 {
 				unsigned long id;
@@ -132,17 +137,32 @@ typedef union DataPackage {
 		union {
 			data_payload_t payload;
 			data_config_t config;
+			unsigned char pad[32];
 		};
 	} container;
 	unsigned char pad[80];
 } __attribute__((packed)) data_package_t;
 
 int data_verify(data_package_t*);
-unsigned long data_checksum(data_header_t*, data_payload_t*);
+unsigned long data_checksum_config(data_header_t*, data_config_t*);
+unsigned long data_checksum_payload(data_header_t*, data_payload_t*);
+/*
 data_package_t make_data(
-	unsigned long, unsigned long, unsigned long, unsigned char,
-	unsigned short, unsigned short,  unsigned short, ...
+	unsigned long id, unsigned long src, unsigned long dst, unsigned char ttl,
+	unsigned short s1, unsigned short s2,  unsigned short s3, unsigned short s4,
+	...
 );
+*/
+
+data_header_t make_header(
+	unsigned long id, unsigned long src, unsigned long dst,
+	unsigned char ttl, unsigned char size, unsigned char flags,
+	...
+);
+data_payload_t make_payload(unsigned short s1, unsigned short s2,  unsigned short s3, unsigned short s4, ...);
+data_config_t make_config(unsigned long save, unsigned long mode, unsigned long mesh, unsigned long sleep, ...);
+data_package_t make_package_wpayload(data_header_t header, data_payload_t payload, ...);
+data_package_t make_package_wconfig(data_header_t header, data_config_t config, ...);
 
 /*
 data_package_t data_make_auto(

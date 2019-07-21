@@ -76,7 +76,14 @@ static WiFiUDP udp;
 static Preferences prefs;
 
 
-static lora_pkg_t    lora_last_pkg;
+static lora_pkg_t    lora_last_pkg = {
+	.meta = {
+		.data = {
+			.parsed = true,
+			.size   = 0,
+		},
+	},
+};
 static data_config_t cfg_runtime;
 static volatile device_mode_t device_mode;
 static volatile bool isr_state;
@@ -90,7 +97,7 @@ RTC_DATA_ATTR unsigned long boot_count = 0UL;
 void hexdump(void *data, size_t size, int width = 8) {
 	for(int i=0; i<size; i++) {
 		if(!(i%width)) MPRINTF("\r\n%8x |", i);
-		MPRINTF(" % 2hhx", *(char*)(data+i));
+		MPRINTF(" % 2hhx", *(char*)(data + i));
 		continue;
 	}
 	MPRINTF("\r\n");
@@ -115,10 +122,18 @@ void lora_receive_handler(int size) {
 	}
 	LoRa.readBytes((char*) &(pkg.data.pkg), sizeof(pkg.data.pkg));
 	hexdump(&pkg.data.pkg, sizeof(pkg.data.pkg));
-	if(data_verify(&pkg.data.pkg)) {
+	if(true
+		&& DATA_MAGIC == pkg.data.pkg.container.header.container.magic
+		&& data_verify(&pkg.data.pkg)
+		&& (false
+			|| device_identifier == pkg.data.pkg.container.header.container.values.v1.destination
+			|| 0xFFFFFFFFUL == pkg.data.pkg.container.header.container.values.v1.destination
+			|| !pkg.data.pkg.container.header.container.values.v1.destination
+		)
+	) {
 		lora_last_pkg = pkg; // copy back
 	} else {
-		debug("lora", "wrong checksum!");
+		debug("lora", "wrong checksum or target!");
 	}
 	return;
 }
@@ -147,14 +162,20 @@ void mode_master() {
 }
 
 void mode_slave() {
-	data_package_t pkg = make_data(
-		++packet_counter, device_identifier,
-		0xFFFFFFFFUL, 0xFFFFU,
-		analogRead(PIN_SENSOR1),
-		analogRead(PIN_SENSOR2),
-		analogRead(PIN_SENSOR3),
-		analogRead(PIN_SENSOR0),
-		0U, NULL
+	data_package_t pkg = make_package_wpayload(
+		make_header(
+			++packet_counter, device_identifier,
+			0xFFFFFFFFUL, 0xFF, sizeof(data_payload_t),
+			DATA_HEADER_FLAG_NONE, NULL
+		),
+		make_payload(
+			analogRead(PIN_SENSOR1),
+			analogRead(PIN_SENSOR2),
+			analogRead(PIN_SENSOR3),
+			analogRead(PIN_SENSOR0),
+			NULL
+		),
+		NULL
 	);
 	debug("lora", "sending: %d", sizeof(pkg));
 	hexdump(&pkg, sizeof(pkg));
@@ -192,10 +213,9 @@ void handle_wake(esp_sleep_wakeup_cause_t cause) {
 void prefs_load() {
 	prefs.begin("default");
 	if(prefs.getULong("id") != device_identifier) {
+		debug("pref", "identity did not match! using defaults");
 		prefs.clear();
 	}
-	cfg_runtime.ver      = prefs.getUShort("ver",   0x6666);
-	cfg_runtime.sub      = prefs.getUShort("sub",   0xFFFF);
 	cfg_runtime.v1.save  = prefs.getULong ("save",  0x00000000);
 	cfg_runtime.v1.mode  = prefs.getULong ("mode",  0x00000000);
 	cfg_runtime.v1.mesh  = prefs.getULong ("mesh",  0x00000000);
@@ -206,8 +226,7 @@ void prefs_load() {
 
 void prefs_save() {
 	prefs.begin("default");
-	prefs.putUShort("ver",   cfg_runtime.ver     );
-	prefs.putUShort("sub",   cfg_runtime.sub     );
+	prefs.putULong ("id",    device_identifier   );
 	prefs.putULong ("save",  cfg_runtime.v1.save );
 	prefs.putULong ("mode",  cfg_runtime.v1.mode );
 	prefs.putULong ("mesh",  cfg_runtime.v1.mesh );
@@ -265,14 +284,28 @@ void setup(void) {
 	return mode_slave();
 }
 
-void udp_receive_handler(int size) {
+void udp_receive_handler(const int size) {
 	if(!size) {
 		return;
 	}
+	if(sizeof(data_config_t) != size) {
+		debug("udp", "wrong size to publish!");
+		udp.flush();
+		return;
+	}
 	debug("udp", "size:%d avail:%d", size, udp.available());
-	unsigned char buffer[size];
-	udp.read(buffer, size);
-	lora_send(buffer, size);
+	data_config_t config;
+	udp.read((char*) &config, sizeof(config));
+	unsigned long target = config.target;
+	config.target = 0;
+	data_package_t pkg = make_package_wconfig(
+		make_header(
+			++packet_counter, device_identifier,
+			target, 0xFF, sizeof(config),
+			DATA_HEADER_FLAG_ALL, NULL
+		), config
+	);
+	lora_send(&pkg, sizeof(pkg));
 	return;
 }
 
@@ -291,11 +324,16 @@ void loop(void) {
 	if(DEVICE_MODE_SLAVE == device_mode) {
 		delay(1111);
 		if(true
+			&&  lora_last_pkg.meta.data.size
 			&& !lora_last_pkg.meta.data.parsed
 			&& !lora_last_pkg.data.pkg.container.config.ver
+			&& (DATA_HEADER_FLAG_ALL == lora_last_pkg.data.
+				pkg.container.header.container.values.v1.flags
+			)
 		) {
 			debug("core", "saving settings...");
 			cfg_runtime = lora_last_pkg.data.pkg.container.config;
+			lora_last_pkg.meta.data.parsed = true;
 			prefs_save();
 		}
 		debug("core", "sleeping... (%lu)", cfg_runtime.v1.sleep);

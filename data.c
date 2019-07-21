@@ -5,7 +5,6 @@
 
 void
 data_serialize_payload(data_payload_t *payload) {
-
 	return;
 }
 
@@ -20,7 +19,7 @@ data_serialize_package(data_package_t *package) {
 }
 
 data_payload_t*
-data_make_payload(unsigned short _3, unsigned short _6, unsigned short _9,
+data_make_payload_ptr(unsigned short _3, unsigned short _6, unsigned short _9,
 	unsigned short t, unsigned short e
 ) {
 	data_payload_t *payload = calloc(1, sizeof(data_payload_t));
@@ -33,8 +32,17 @@ data_make_payload(unsigned short _3, unsigned short _6, unsigned short _9,
 }
 
 unsigned long
-data_checksum(data_header_t *header, data_payload_t *payload) {
+data_checksum_payload(data_header_t *header, data_payload_t *payload) {
 	unsigned long checksum = crc32_le(DATA_CRC, (void*) payload, sizeof(data_payload_t));
+	if(header) {
+		header->container.values.v1.checksum = checksum;
+	}
+	return checksum;
+}
+
+unsigned long
+data_checksum_config(data_header_t *header, data_config_t *config) {
+	unsigned long checksum = crc32_le(DATA_CRC, (void*) config, sizeof(data_config_t));
 	if(header) {
 		header->container.values.v1.checksum = checksum;
 	}
@@ -43,18 +51,22 @@ data_checksum(data_header_t *header, data_payload_t *payload) {
 
 int
 data_verify(data_package_t *package) {
-	unsigned long orig = package->container.header.container.values.v1.checksum;
-	unsigned long calc = data_checksum(
+	const unsigned long orig = package->container.header.container.values.v1.checksum;
+	const unsigned long config = data_checksum_config(
+		&(package->container.header),
+		&(package->container.config)
+	);
+	const unsigned long payload = data_checksum_payload(
 		&(package->container.header),
 		&(package->container.payload)
 	);
 	package->container.header.container.values.v1.checksum = orig; // restore original
-	return (calc == orig);
+	return (orig == config) || (orig == payload);
 }
 
 //
 data_header_t*
-data_make_header(
+data_make_header_ptr(
 	unsigned long dst,
 	unsigned long id,
 	unsigned long ts,
@@ -63,7 +75,7 @@ data_make_header(
 	unsigned char length,
 	unsigned char ttl,
 	unsigned char netid,
-	data_header_flag_t flags,
+	unsigned char flags,
 	...
 ) {
 	data_header_t *header = calloc(1, sizeof(data_header_t));
@@ -80,21 +92,21 @@ data_make_header(
 }
 
 data_package_t*
-data_make_package(data_header_t header, data_payload_t payload) {
+data_make_package_ptr(data_header_t header, data_payload_t payload) {
 	data_package_t *package = calloc(1, sizeof(data_package_t));
 	package->container.payload = payload;
 	package->container.header = header;
-	package->container.header.container.values.v1.checksum = data_checksum(&header, &payload);
+	package->container.header.container.values.v1.checksum = data_checksum_payload(&header, &payload);
 	return package;
 }
 
-data_package_t
-make_data(
-	unsigned long id, unsigned long src, unsigned long dst, unsigned char ttl,
-	unsigned short s1, unsigned short s2,  unsigned short s3, ...
+data_header_t
+make_header(
+	unsigned long id, unsigned long src, unsigned long dst,
+	unsigned char ttl, unsigned char size, unsigned char flags,
+	...
 ) {
 	data_header_t header = {
-		//{ .pad = "" },
 		.container = {
 			.magic = DATA_MAGIC,
 			.ver = 0xABCD,
@@ -105,12 +117,10 @@ make_data(
 					.timestamp   = millis(),
 					.checksum    = 0 & ~DATA_CRC,
 					.origin      = src,
-					.length      = sizeof(data_payload_t),
+					.length      = size,
 					.ttl         = ttl,
 					.netid       = 0x99,
-					.flags       = {
-						.data = DATA_HEADER_FLAG_NONE,
-					},
+					.flags       = flags,
 				},
 				//.v2 = {
 				//	.id   = 0x0,
@@ -120,8 +130,12 @@ make_data(
 			},
 		},
 	};
+	return header;
+}
+
+data_payload_t
+make_payload(unsigned short s1, unsigned short s2,  unsigned short s3, unsigned short s4, ...) {
 	data_payload_t payload = {
-		//{ .pad = "" },
 		.container = {
 			.ver = 0xEFBE,
 			.values = {
@@ -138,13 +152,44 @@ make_data(
 			},
 		},
 	};
+	return payload;
+}
+
+data_config_t
+make_config(unsigned long save, unsigned long mode, unsigned long mesh, unsigned long sleep, ...) {
+	data_config_t config = {
+		.ver = 0x0000,
+		.sub = 0xFFFF,
+		.v1 = {
+			.save  = save,
+			.mode  = mode,
+			.mesh  = mesh,
+			.sleep = sleep,
+		},
+	};
+	return config;
+}
+
+data_package_t
+make_package_wpayload(data_header_t header, data_payload_t payload, ...) {
 	data_package_t package = {
-		//{ .pad = "" },
 		.container = {
-			.header = header,
+			.header  = header,
 			.payload = payload,
 		},
 	};
-	data_checksum(&(package.container.header), &(package.container.payload));
+	data_checksum_payload(&(package.container.header), &(package.container.payload));
+	return package;
+}
+
+data_package_t
+make_package_wconfig(data_header_t header, data_config_t config, ...) {
+	data_package_t package = {
+		.container = {
+			.header = header,
+			.config = config,
+		},
+	};
+	data_checksum_config(&(package.container.header), &(package.container.config));
 	return package;
 }
