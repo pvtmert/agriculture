@@ -96,8 +96,8 @@ make_data(
 	data_header_t header = {
 		//{ .pad = "" },
 		.container = {
-			.magic = 0x12345678,
-			.ver = 0x1234,
+			.magic = DATA_MAGIC,
+			.ver = 0xABCD,
 			.values = {
 				.v1 = {
 					.destination = dst,
@@ -107,7 +107,7 @@ make_data(
 					.origin      = src,
 					.length      = sizeof(data_payload_t),
 					.ttl         = ttl,
-					.netid       = 0xFF,
+					.netid       = 0x99,
 					.flags       = {
 						.data = DATA_HEADER_FLAG_NONE,
 					},
@@ -123,7 +123,7 @@ make_data(
 	data_payload_t payload = {
 		//{ .pad = "" },
 		.container = {
-			.ver = 0x1234,
+			.ver = 0xEFBE,
 			.values = {
 				.v1 = {
 					.by_name = {

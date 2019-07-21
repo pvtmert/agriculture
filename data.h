@@ -5,7 +5,8 @@
 #include <rom/crc.h>
 #include <Arduino.h>
 
-#define DATA_CRC 0x4321
+#define DATA_CRC   0x4321
+#define DATA_MAGIC 0x12345678
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,6 +26,25 @@ typedef enum {
 } bool;
 */
 
+typedef struct DataConfig {
+	unsigned short ver;
+	unsigned short sub;
+	struct DataConfigV1 {
+		unsigned long save;
+		unsigned long mode;
+		unsigned long mesh;
+		unsigned long sleep;
+		union {
+			struct {
+				unsigned long res1;
+				unsigned long res2;
+				unsigned long res3;
+			} values;
+			unsigned long array[3];
+		} reserved;
+	} v1;
+} __attribute__((packed)) data_config_t;
+
 typedef enum DataHeaderFlags {
 	DATA_HEADER_FLAG_NONE = 0x00,
 	DATA_HEADER_FLAG_A    = (1 << 0),
@@ -35,10 +55,12 @@ typedef enum DataHeaderFlags {
 	DATA_HEADER_FLAG_F    = (1 << 5),
 	DATA_HEADER_FLAG_G    = (1 << 6),
 	DATA_HEADER_FLAG_H    = (1 << 7),
+	DATA_HEADER_FLAG_ALL  = 0xFF,
+	DATA_HEADER_FLAG_CNT  = 8,
 } data_header_flag_e;
 
 typedef union DataHeaderFlag {
-	struct {
+	struct DataHeaderFlagBit {
 		unsigned flag_a: 1;
 		unsigned flag_b: 1;
 		unsigned flag_c: 1;
@@ -106,8 +128,11 @@ typedef union DataPayload {
 
 typedef union DataPackage {
 	struct DataPackageContainer {
-		data_header_t  header;
-		data_payload_t payload;
+		data_header_t header;
+		union {
+			data_payload_t payload;
+			data_config_t config;
+		};
 	} container;
 	unsigned char pad[80];
 } __attribute__((packed)) data_package_t;
