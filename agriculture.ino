@@ -20,6 +20,7 @@
 #include "data.h"
 
 #define PWR_LORA    21
+#define PWR_SENSOR0 22
 #define PWR_SENSOR1 19
 #define PWR_SENSOR2 18
 #define PWR_SENSOR3 39 // input only
@@ -30,11 +31,11 @@
 #define LORA_SYNC 0xF3
 #define LORA_FREQ 433E6
 
-#define PIN_SENSORVP 36
-#define PIN_SENSOR0  35 // 35 // temp(air)
 #define PIN_SENSOR1  27 // 27 // 30
 #define PIN_SENSOR2   4 // 4  // 60
 #define PIN_SENSOR3   5 // 5  // 90
+#define PIN_SENSOR0  35 // 35 // temp(air)
+#define PIN_SENSORVP 36
 
 #define PIN_SPI1 //  5
 #define PIN_SPI2 // 19
@@ -175,7 +176,7 @@ void mode_slave() {
 			analogRead(PIN_SENSOR3),
 			analogRead(PIN_SENSOR0),
 			analogRead(PIN_SENSORVP),
-			0, NULL
+			0xABCD, NULL
 		),
 		NULL
 	);

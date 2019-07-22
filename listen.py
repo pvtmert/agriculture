@@ -39,7 +39,9 @@ while True:
 		length=len(data),
 	))
 	lora_addr = struct.unpack_from("<L", data, 0x28)
+	lora_data = struct.unpack_from("<6H", data, 0x42)
 	#print([ hex(i) for i in lora_addr ])
+	print("sensors:", lora_data)
 	mbuffer = bytearray(32)
 	config.pack_into(mbuffer, 0x0,
 		lora_addr[0], # TARGET ADDR
