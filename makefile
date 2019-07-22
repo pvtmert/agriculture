@@ -4,7 +4,7 @@
 ARDUINO := /Volumes/data/Applications/Arduino.app/Contents/MacOS/Arduino
 BUILD   := $(wildcard /Volumes/tempramdisk*)/build
 BOARD   := esp32:esp32:esp32thing
-PORT    := /dev/cu.SLAB_USBtoUART
+PORT    := /dev/cu.usbmodem002324124
 BAUD    := 115200
 ARGS    := --verbose --preserve-temp-files \
            --pref upload.speed=921600 \

@@ -120,8 +120,9 @@ typedef union DataPayload {
 					} moist;
 					unsigned short temp;
 					unsigned short ec;
+					unsigned short vp;
 				} by_name;
-				unsigned short sensors[5];
+				unsigned short sensors[6];
 			} v1;
 			struct DataPayloadV2 {
 				char message[30];
@@ -155,12 +156,20 @@ data_package_t make_data(
 */
 
 data_header_t make_header(
-	unsigned long id, unsigned long src, unsigned long dst,
+	unsigned long id,  unsigned long src,  unsigned long dst,
 	unsigned char ttl, unsigned char size, unsigned char flags,
 	...
 );
-data_payload_t make_payload(unsigned short s1, unsigned short s2,  unsigned short s3, unsigned short s4, ...);
-data_config_t make_config(unsigned long save, unsigned long mode, unsigned long mesh, unsigned long sleep, ...);
+data_payload_t make_payload(
+	unsigned short s1, unsigned short s2, unsigned short s3,
+	unsigned short s4, unsigned short s5, unsigned short s6,
+	...
+);
+data_config_t make_config(
+	unsigned long save, unsigned long mode,
+	unsigned long mesh, unsigned long sleep,
+	...
+);
 data_package_t make_package_wpayload(data_header_t header, data_payload_t payload, ...);
 data_package_t make_package_wconfig(data_header_t header, data_config_t config, ...);
 

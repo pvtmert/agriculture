@@ -24,21 +24,22 @@
 #define PWR_SENSOR2 18
 #define PWR_SENSOR3 39 // input only
 
-#define LORA_SS   18 //23
-#define LORA_RST  14 //25
+#define LORA_SS   23 //18 //23
+#define LORA_RST  25 //14 //25
 #define LORA_DIO  26
 #define LORA_SYNC 0xF3
 #define LORA_FREQ 433E6
 
-#define PIN_SENSOR0 0 // 35 // temp(air)
-#define PIN_SENSOR1 0 // 27 // 30
-#define PIN_SENSOR2 0 // 4  // 60
-#define PIN_SENSOR3 0 // 5  // 90
+#define PIN_SENSORVP 36
+#define PIN_SENSOR0  35 // 35 // temp(air)
+#define PIN_SENSOR1  27 // 27 // 30
+#define PIN_SENSOR2   4 // 4  // 60
+#define PIN_SENSOR3   5 // 5  // 90
 
-#define PIN_SPI1 5
-#define PIN_SPI2 19
-#define PIN_SPI3 27
-#define PIN_SPI4 18
+#define PIN_SPI1 //  5
+#define PIN_SPI2 // 19
+#define PIN_SPI3 // 27
+#define PIN_SPI4 // 18
 
 #define PIN_MASTER 0 // masterswitch
 
@@ -88,7 +89,7 @@ static data_config_t cfg_runtime;
 static volatile device_mode_t device_mode;
 static volatile bool isr_state;
 
-const SPIClass hspi(HSPI);
+SPIClass hspi(HSPI);
 const unsigned long device_identifier = (uint32_t) (ESP.getEfuseMac() >> 16);
 
 RTC_DATA_ATTR static unsigned long packet_counter = 0UL;
@@ -173,10 +174,15 @@ void mode_slave() {
 			analogRead(PIN_SENSOR2),
 			analogRead(PIN_SENSOR3),
 			analogRead(PIN_SENSOR0),
-			NULL
+			analogRead(PIN_SENSORVP),
+			0, NULL
 		),
 		NULL
 	);
+	digitalWrite(PWR_SENSOR0, LOW);
+	digitalWrite(PWR_SENSOR1, LOW);
+	digitalWrite(PWR_SENSOR2, LOW);
+	digitalWrite(PWR_SENSOR3, LOW);
 	debug("lora", "sending: %d", sizeof(pkg));
 	hexdump(&pkg, sizeof(pkg));
 	lora_send(&pkg, sizeof(pkg));
@@ -240,25 +246,28 @@ void setup(void) {
 	Serial.begin(115200);
 	MPRINTF("# %08llx\r\n", device_identifier);
 	handle_wake(esp_sleep_get_wakeup_cause());
-	pinMode(PIN_MASTER,  INPUT_PULLUP);
-	pinMode(LORA_DIO,    INPUT);
-	pinMode(LORA_SS,     OUTPUT);
-	pinMode(PWR_LORA,    OUTPUT);
-	pinMode(PWR_SENSOR1, OUTPUT);
-	pinMode(PWR_SENSOR2, OUTPUT);
-	pinMode(PIN_SENSOR0, INPUT);
-	pinMode(PIN_SENSOR1, INPUT);
-	pinMode(PIN_SENSOR2, INPUT);
-	pinMode(PIN_SENSOR3, INPUT);
+	pinMode(PIN_MASTER,   INPUT_PULLUP);
+	pinMode(LORA_DIO,     INPUT);
+	pinMode(LORA_SS,      OUTPUT);
+	pinMode(PWR_LORA,     OUTPUT);
+	pinMode(PWR_SENSOR1,  OUTPUT);
+	pinMode(PWR_SENSOR2,  OUTPUT);
+	pinMode(PIN_SENSOR0,  INPUT);
+	pinMode(PIN_SENSOR1,  INPUT);
+	pinMode(PIN_SENSOR2,  INPUT);
+	pinMode(PIN_SENSOR3,  INPUT);
+	pinMode(PIN_SENSORVP, INPUT);
 	digitalWrite(PWR_LORA,    HIGH);
+	digitalWrite(PWR_SENSOR0, HIGH);
 	digitalWrite(PWR_SENSOR1, HIGH);
 	digitalWrite(PWR_SENSOR2, HIGH);
+	digitalWrite(PWR_SENSOR3, HIGH);
 	attachInterrupt(PIN_MASTER, isr, RISING);
 	prefs_load();
-	//hspi.begin();
-	SPI.begin(PIN_SPI1, PIN_SPI2, PIN_SPI3, PIN_SPI4);
+	hspi.begin();
+	//SPI.begin(PIN_SPI1, PIN_SPI2, PIN_SPI3, PIN_SPI4);
 	LoRa.crc();
-	//LoRa.setSPI(hspi);
+	LoRa.setSPI(hspi);
 	//LoRa.setSPIFrequency(8E6);
 	LoRa.setPins(LORA_SS, LORA_RST, LORA_DIO);
 	while(!LoRa.begin(LORA_FREQ)) {

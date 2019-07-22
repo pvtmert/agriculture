@@ -134,16 +134,27 @@ make_header(
 }
 
 data_payload_t
-make_payload(unsigned short s1, unsigned short s2,  unsigned short s3, unsigned short s4, ...) {
+make_payload(
+	unsigned short s1, unsigned short s2, unsigned short s3,
+	unsigned short s4, unsigned short s5, unsigned short s6,
+	...
+) {
 	data_payload_t payload = {
 		.container = {
-			.ver = 0xEFBE,
+			.ver = 0xBEEF,
 			.values = {
 				.v1 = {
 					.by_name = {
-						.moist = s1,
-						.temp  = s2,
-						.ec    = s3,
+						.moist = {
+							.by_length = {
+								._30 = s1,
+								._60 = s2,
+								._90 = s3,
+							},
+						},
+						.temp  = s4,
+						.ec    = s5,
+						.vp    = s6,
 					},
 				},
 				//.v2 = {
