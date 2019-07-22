@@ -251,8 +251,11 @@ void setup(void) {
 	pinMode(LORA_DIO,     INPUT);
 	pinMode(LORA_SS,      OUTPUT);
 	pinMode(PWR_LORA,     OUTPUT);
+	pinMode(PWR_SENSOR0,  OUTPUT);
 	pinMode(PWR_SENSOR1,  OUTPUT);
 	pinMode(PWR_SENSOR2,  OUTPUT);
+	pinMode(PWR_SENSOR3,  OUTPUT);
+	//pinMode(PWR_SENSORVP, OUTPUT);
 	pinMode(PIN_SENSOR0,  INPUT);
 	pinMode(PIN_SENSOR1,  INPUT);
 	pinMode(PIN_SENSOR2,  INPUT);
@@ -263,6 +266,7 @@ void setup(void) {
 	digitalWrite(PWR_SENSOR1, HIGH);
 	digitalWrite(PWR_SENSOR2, HIGH);
 	digitalWrite(PWR_SENSOR3, HIGH);
+	//digitalWrite(PWR_SENSORVP, HIGH);
 	attachInterrupt(PIN_MASTER, isr, RISING);
 	prefs_load();
 	hspi.begin();
