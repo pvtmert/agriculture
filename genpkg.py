@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, sys, time, socket, struct, json, random, hashlib
+import os, sys, time, socket, struct, json, random, hashlib, binascii
 
 from listen import lora, meta, header, payload, hexdump, getTime
 from listen import lora_meta, lora_header, lora_payload, config
@@ -25,10 +25,11 @@ while True:
 	lora_header.pack_into(data, 0x10, *header(
 		magic=0x12345678,
 		ver=0xABCD,
+		res=0x0000,
 		dst=0x30e543a4,
 		id=counter,
 		ts=int(time.time()),
-		cs=0xFFFFFFFF,
+		cs=0x11223344,
 		src=0xFFFFFFFF,
 		size=233,
 		ttl=0x80,
@@ -44,8 +45,9 @@ while True:
 		ec=random.randint(100, 200),
 		vp=random.randint(200, 300),
 	))
+	struct.pack_into("<L", data, 0x24, binascii.crc32(data[0x40:], 0x4321))
 	print("sending: ", hex(counter), hexdump(data))
 	sock.sendto(data, (ADDR, PORT))
-	time.sleep(5.0)
+	time.sleep(1.0)
 	counter += 1
 	continue

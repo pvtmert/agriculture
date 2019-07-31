@@ -25,6 +25,7 @@ meta = namedtuple("meta", [
 header = namedtuple("header", [
 	"magic",
 	"ver",
+	"res",
 	"dst",
 	"id",
 	"ts",
@@ -46,8 +47,8 @@ payload = namedtuple("payload", [
 ])
 
 config = struct.Struct("<5L")
-lora_meta = struct.Struct("<LLhf")
-lora_header = struct.Struct("<LH5L4B")
+lora_meta = struct.Struct("<2L1h1f")
+lora_header = struct.Struct("<1L2H5L4B")
 lora_payload = struct.Struct("<7H")
 
 def getTime(filename: str, ident: str, default=int(15e6), devices={}):
@@ -62,7 +63,7 @@ def getTime(filename: str, ident: str, default=int(15e6), devices={}):
 192.168.4.1:4321: #96:
    0 |  0  0  0  0 50  0  0  0
    8 | B5 FF  0  0  0  0 24 41 <- ends lora part
-  10 | 78 56 34 12 CD AB  0  0
+  10 | 78 56 34 12 CD AB  0  0 <- packet begins at 0x10
   18 | FF FF FF FF  7  0  0  0
   20 | 53  9  0  0 22 B4 14 C2
   28 | A4 43 E9 44 20 FF 99  0
@@ -78,6 +79,7 @@ def getTime(filename: str, ident: str, default=int(15e6), devices={}):
 (
 	lora_magic,
 	lora_ver,
+	lora_res,
 	lora_dst,
 	lora_id,
 	lora_ts,
