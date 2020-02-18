@@ -1,6 +1,6 @@
 //
 
-#include <ESP.h>
+//#include <ESP.h> // is no more
 #include <SPI.h>
 #include <Wire.h>
 #include <WiFi.h>
@@ -13,6 +13,7 @@
 
 #include <assert.h>
 #include <rom/crc.h>
+#include <sys/time.h>
 
 //#include "font.h"
 
@@ -78,7 +79,7 @@ static WiFiUDP udp;
 static Preferences prefs;
 
 
-static lora_pkg_t    lora_last_pkg = {
+static lora_pkg_t lora_last_pkg = {
 	.meta = {
 		.data = {
 			.parsed = true,
@@ -129,13 +130,13 @@ void lora_receive_handler(int size) {
 		&& data_verify(&pkg.data.pkg)
 		&& (false
 			|| device_identifier == pkg.data.pkg.container.header.container.values.v1.destination
-			|| 0xFFFFFFFFUL == pkg.data.pkg.container.header.container.values.v1.destination
-			|| !pkg.data.pkg.container.header.container.values.v1.destination
+			|| 0xFFFFFFFFUL      == pkg.data.pkg.container.header.container.values.v1.destination
+			|| !pkg.data.pkg.container.header.container.values.v1.destination // TODO: .target ?
 		)
 	) {
 		lora_last_pkg = pkg; // copy back
 	} else {
-		debug("lora", "wrong checksum or target!");
+		debug("lora", "wrong checksum!");
 	}
 	return;
 }
@@ -223,9 +224,9 @@ void prefs_load() {
 		debug("pref", "identity did not match! using defaults");
 		prefs.clear();
 	}
-	cfg_runtime.v1.save  = prefs.getULong ("save",  0x00000000);
-	cfg_runtime.v1.mode  = prefs.getULong ("mode",  0x00000000);
-	cfg_runtime.v1.mesh  = prefs.getULong ("mesh",  0x00000000);
+	cfg_runtime.v1.save      = prefs.getULong ("save",      0x00000000);
+	cfg_runtime.v1.mode      = prefs.getULong ("mode",      0x00000000);
+	cfg_runtime.v1.mesh      = prefs.getULong ("mesh",      0x00000000);
 	cfg_runtime.v1.sleep     = prefs.getULong ("sleep",     SLEEP_TTL );
 	cfg_runtime.v1.timestamp = prefs.getULong ("timestamp", 1262304000); // 1.1.2010 issue: #1
 	prefs.end();
@@ -234,10 +235,10 @@ void prefs_load() {
 
 void prefs_save() {
 	prefs.begin("default");
-	prefs.putULong ("id",    device_identifier   );
-	prefs.putULong ("save",  cfg_runtime.v1.save );
-	prefs.putULong ("mode",  cfg_runtime.v1.mode );
-	prefs.putULong ("mesh",  cfg_runtime.v1.mesh );
+	prefs.putULong ("id",        device_identifier        );
+	prefs.putULong ("save",      cfg_runtime.v1.save      );
+	prefs.putULong ("mode",      cfg_runtime.v1.mode      );
+	prefs.putULong ("mesh",      cfg_runtime.v1.mesh      );
 	prefs.putULong ("sleep",     cfg_runtime.v1.sleep     );
 	prefs.putULong ("timestamp", cfg_runtime.v1.timestamp );
 	prefs.end();
@@ -300,6 +301,11 @@ void setup(void) {
 	return mode_slave();
 }
 
+/*
+	Receives message from udp sized `size`,
+	Checks if it matches with `data_config_t`.
+	If it does, passes through lora. Wrapping with headers.
+*/
 void udp_receive_handler(const int size) {
 	if(!size) {
 		return;
@@ -312,8 +318,8 @@ void udp_receive_handler(const int size) {
 	debug("udp", "size:%d avail:%d", size, udp.available());
 	data_config_t config;
 	udp.read((char*) &config, sizeof(config));
-	unsigned long target = config.target;
-	config.target = 0;
+	unsigned long target = config.meta.target;
+	config.meta.target = 0;
 	data_package_t pkg = make_package_wconfig(
 		make_header(
 			++packet_counter, device_identifier,
@@ -334,15 +340,15 @@ void udp_send(IPAddress dst, uint16_t port, void *data, size_t size) {
 
 void loop_operation_slave(unsigned initial_delay=1111) {
 	delay(initial_delay);
-		if(true
-			&&  lora_last_pkg.meta.data.size
-			&& !lora_last_pkg.meta.data.parsed
+	if(true
+		&&  lora_last_pkg.meta.data.size
+		&& !lora_last_pkg.meta.data.parsed
 		&& !lora_last_pkg.data.pkg.container.config.meta.ver.maj
-			&& (DATA_HEADER_FLAG_ALL == lora_last_pkg.data.
-				pkg.container.header.container.values.v1.flags
-			)
-		) {
-			lora_last_pkg.meta.data.parsed = true;
+		&& (DATA_HEADER_FLAG_ALL == lora_last_pkg.data.
+			pkg.container.header.container.values.v1.flags
+		)
+	) {
+		lora_last_pkg.meta.data.parsed = true;
 		cfg_runtime = lora_last_pkg.data.pkg.container.config;
 		if(cfg_runtime.v1.timestamp > 0) {
 			struct timeval tv = {
@@ -352,13 +358,13 @@ void loop_operation_slave(unsigned initial_delay=1111) {
 			settimeofday(&tv, NULL);
 		}
 		debug("core", "saving settings...");
-			prefs_save();
-		}
-		debug("core", "sleeping... (%lu)", cfg_runtime.v1.sleep);
-		esp_sleep_enable_timer_wakeup(cfg_runtime.v1.sleep);
-		esp_sleep_enable_ext0_wakeup(GPIO_NUM_0, LOW);
-		esp_deep_sleep_start();
-		return yield();
+		prefs_save();
+	}
+	debug("core", "sleeping... (%lu)", cfg_runtime.v1.sleep);
+	esp_sleep_enable_timer_wakeup(cfg_runtime.v1.sleep);
+	esp_sleep_enable_ext0_wakeup(GPIO_NUM_0, LOW);
+	esp_deep_sleep_start();
+	return yield();
 }
 
 void loop_operation_master(void) {
