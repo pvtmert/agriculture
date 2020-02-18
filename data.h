@@ -8,6 +8,9 @@
 #define DATA_CRC   0x4321
 #define DATA_MAGIC 0x12345678
 
+#define DATA_CONFIG_VER_MAJOR 0x0001
+#define DATA_CONFIG_VER_MINOR 0xFFFE
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -18,6 +21,8 @@ extern "C" {
 #include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/time.h>
+#include <time.h>
 
 /*
 typedef enum {
@@ -29,23 +34,23 @@ typedef enum {
 typedef struct DataConfig {
 	union DataConfigMeta {
 		struct DataConfigMetaVer {
-			unsigned short ver;
-			unsigned short sub;
-		} __attribute__((packed)) ;
+			unsigned short maj;
+			unsigned short min;
+		} __attribute__((packed)) ver;
 		unsigned long target;
-	} __attribute__((packed)) ;
+	} __attribute__((packed)) meta ;
 	struct DataConfigV1 {
 		unsigned long save;
 		unsigned long mode;
 		unsigned long mesh;
 		unsigned long sleep;
+		unsigned long timestamp;
 		union DataConfigV1_Reserved {
 			struct DataConfigV1_ReservedNames {
 				unsigned long res1;
 				unsigned long res2;
-				unsigned long res3;
 			} __attribute__((packed)) values;
-			unsigned long array[3];
+			unsigned long array[2];
 		} __attribute__((packed)) reserved;
 	} __attribute__((packed)) v1;
 } __attribute__((packed)) data_config_t;
@@ -169,7 +174,7 @@ data_payload_t make_payload(
 data_config_t make_config(
 	unsigned long save, unsigned long mode,
 	unsigned long mesh, unsigned long sleep,
-	...
+	unsigned long timestamp, ...
 );
 data_package_t make_package_wpayload(data_header_t header, data_payload_t payload, ...);
 data_package_t make_package_wconfig(data_header_t header, data_config_t config, ...);
