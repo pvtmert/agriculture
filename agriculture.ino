@@ -226,7 +226,8 @@ void prefs_load() {
 	cfg_runtime.v1.save  = prefs.getULong ("save",  0x00000000);
 	cfg_runtime.v1.mode  = prefs.getULong ("mode",  0x00000000);
 	cfg_runtime.v1.mesh  = prefs.getULong ("mesh",  0x00000000);
-	cfg_runtime.v1.sleep = prefs.getULong ("sleep", SLEEP_TTL);
+	cfg_runtime.v1.sleep     = prefs.getULong ("sleep",     SLEEP_TTL );
+	cfg_runtime.v1.timestamp = prefs.getULong ("timestamp", 1262304000); // 1.1.2010 issue: #1
 	prefs.end();
 	return;
 }
@@ -237,7 +238,8 @@ void prefs_save() {
 	prefs.putULong ("save",  cfg_runtime.v1.save );
 	prefs.putULong ("mode",  cfg_runtime.v1.mode );
 	prefs.putULong ("mesh",  cfg_runtime.v1.mesh );
-	prefs.putULong ("sleep", cfg_runtime.v1.sleep);
+	prefs.putULong ("sleep",     cfg_runtime.v1.sleep     );
+	prefs.putULong ("timestamp", cfg_runtime.v1.timestamp );
 	prefs.end();
 	return;
 }
@@ -337,17 +339,26 @@ void loop(void) {
 	}
 	if(DEVICE_MODE_SLAVE == device_mode) {
 		delay(1111);
+void loop_operation_slave(unsigned initial_delay=1111) {
+	delay(initial_delay);
 		if(true
 			&&  lora_last_pkg.meta.data.size
 			&& !lora_last_pkg.meta.data.parsed
-			&& !lora_last_pkg.data.pkg.container.config.ver
+		&& !lora_last_pkg.data.pkg.container.config.meta.ver.maj
 			&& (DATA_HEADER_FLAG_ALL == lora_last_pkg.data.
 				pkg.container.header.container.values.v1.flags
 			)
 		) {
-			debug("core", "saving settings...");
-			cfg_runtime = lora_last_pkg.data.pkg.container.config;
 			lora_last_pkg.meta.data.parsed = true;
+		cfg_runtime = lora_last_pkg.data.pkg.container.config;
+		if(cfg_runtime.v1.timestamp > 0) {
+			struct timeval tv = {
+				.tv_sec  = cfg_runtime.v1.timestamp,
+				.tv_usec = 0,
+			};
+			settimeofday(&tv, NULL);
+		}
+		debug("core", "saving settings...");
 			prefs_save();
 		}
 		debug("core", "sleeping... (%lu)", cfg_runtime.v1.sleep);
@@ -355,7 +366,7 @@ void loop(void) {
 		esp_sleep_enable_ext0_wakeup(GPIO_NUM_0, LOW);
 		esp_deep_sleep_start();
 		return yield();
-	}
+}
 	udp_receive_handler(udp.parsePacket());
 	if(lora_last_pkg.meta.data.parsed) {
 		return yield();
