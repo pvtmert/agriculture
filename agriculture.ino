@@ -133,10 +133,12 @@ void lora_receive_handler(int size) {
 			|| 0xFFFFFFFFUL      == pkg.data.pkg.container.header.container.values.v1.destination
 			|| !pkg.data.pkg.container.header.container.values.v1.destination // TODO: .target ?
 		)
+		&& DATA_CONFIG_VER_MAJOR == pkg.data.pkg.container.config.meta.ver.maj
+		&& DATA_CONFIG_VER_MINOR == pkg.data.pkg.container.config.meta.ver.min
 	) {
 		lora_last_pkg = pkg; // copy back
 	} else {
-		debug("lora", "wrong checksum!");
+		debug("lora", "wrong checksum / version / destination!");
 	}
 	return;
 }
