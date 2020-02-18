@@ -106,6 +106,8 @@ make_header(
 	unsigned char ttl, unsigned char size, unsigned char flags,
 	...
 ) {
+	time_t now;
+	time(&now);
 	data_header_t header = {
 		.container = {
 			.magic = DATA_MAGIC,
@@ -114,7 +116,7 @@ make_header(
 				.v1 = {
 					.destination = dst,
 					.identifier  = id,
-					.timestamp   = millis(),
+					.timestamp   = now, // previously `millis()` issue: #1
 					.checksum    = 0 & ~DATA_CRC,
 					.origin      = src,
 					.length      = size,
@@ -167,15 +169,24 @@ make_payload(
 }
 
 data_config_t
-make_config(unsigned long save, unsigned long mode, unsigned long mesh, unsigned long sleep, ...) {
+make_config(
+	unsigned long save, unsigned long mode,
+	unsigned long mesh, unsigned long sleep,
+	unsigned long timestamp, ...
+) {
 	data_config_t config = {
-		.ver = 0x0000,
-		.sub = 0xFFFF,
+		.meta = {
+			.ver = {
+				.maj = DATA_CONFIG_VER_MAJOR,
+				.min = DATA_CONFIG_VER_MINOR,
+			},
+		},
 		.v1 = {
 			.save  = save,
 			.mode  = mode,
 			.mesh  = mesh,
 			.sleep = sleep,
+			.timestamp = timestamp,
 		},
 	};
 	return config;
