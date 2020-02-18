@@ -46,12 +46,12 @@ payload = namedtuple("payload", [
 	"vp",
 ])
 
-config = struct.Struct("<5L")
+config = struct.Struct("<2H5L")
 lora_meta = struct.Struct("<2L1h1f")
 lora_header = struct.Struct("<1L2H5L4B")
 lora_payload = struct.Struct("<7H")
 
-def getTime(filename: str, ident: str, default=int(15e6), devices={}):
+def getSleepTimeForDevice(filename: str, ident: str, default=int(15e6), devices={}):
 	if os.path.exists(filename):
 		with open(filename) as file:
 			devices = json.load(file)
@@ -117,12 +117,14 @@ def main():
 		)
 		mbuffer = bytearray(32)
 		lora_addr = struct.unpack_from("<L", data, 0x28)[0]
-		config.pack_into(mbuffer, 0x0,
-			lora_addr, # TARGET ADDR
+		config.pack_into(mbuffer, 0x00, # offset
+			0x0001,      # version/major
+			0xFFFE,      # version/minor
 			0x12345678,  # save
 			0x87654321,  # mode
 			0xABC00DEF,  # mesh
-			getTime("devices.json", "{:08x}".format(lora_addr)), # sleep
+			getSleepTimeForDevice("devices.json", "{:08x}".format(lora_addr)),
+			int(time.time()), # unix-timestamp
 		)
 		print("sending: ", hex(lora_addr), hexdump(mbuffer))
 		sock.sendto(mbuffer, addr)
