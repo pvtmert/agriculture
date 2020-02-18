@@ -332,13 +332,6 @@ void udp_send(IPAddress dst, uint16_t port, void *data, size_t size) {
 	return;
 }
 
-void loop(void) {
-	ArduinoOTA.handle();
-	if(isr_state) {
-		isr_state = false;
-	}
-	if(DEVICE_MODE_SLAVE == device_mode) {
-		delay(1111);
 void loop_operation_slave(unsigned initial_delay=1111) {
 	delay(initial_delay);
 		if(true
@@ -367,11 +360,38 @@ void loop_operation_slave(unsigned initial_delay=1111) {
 		esp_deep_sleep_start();
 		return yield();
 }
+
+void loop_operation_master(void) {
 	udp_receive_handler(udp.parsePacket());
 	if(lora_last_pkg.meta.data.parsed) {
 		return yield();
 	}
 	udp_send(NET_IP_DST, NET_PORT,  &lora_last_pkg, sizeof(lora_last_pkg));
 	lora_last_pkg.meta.data.parsed = true;
+	return yield();
+}
+
+void loop(void) {
+	ArduinoOTA.handle();
+	if(isr_state) {
+		isr_state = false;
+	}
+	switch(device_mode) {
+		case DEVICE_MODE_SLAVE:
+			loop_operation_slave();
+			break;
+		case DEVICE_MODE_MASTER:
+			loop_operation_master();
+			break;
+		default:
+			printf("Unsupported Mode Error !Panic!"
+				"(%s: %s: %d)",
+				__FILE__,
+				__func__,
+				__LINE__,
+				NULL
+			);
+			break;
+	}
 	return yield();
 }
