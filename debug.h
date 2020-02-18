@@ -4,7 +4,8 @@
 
 #define MPRINTF Serial.printf
 
-void debug(const char *mod, const char *fmt, ...) {
+static void
+debug(const char *mod, const char *fmt, ...) {
 	char *buffer = (char*) malloc(strlen(fmt) + 32);
 	sprintf(buffer, "[ %8ld ] %8s | %s\r\n", millis(), mod, fmt, NULL);
 	va_list args;
