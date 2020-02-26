@@ -2,7 +2,7 @@
 
 import os, sys, time, socket, struct, json, random, hashlib, binascii
 
-from listen import lora, meta, header, payload, hexdump, getTime
+from listen import lora, meta, header, payload, hexdump
 from listen import lora_meta, lora_header, lora_payload, config
 
 ADDR = "224.0.0.1"

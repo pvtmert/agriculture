@@ -10,6 +10,10 @@ ARGS    := --verbose --preserve-temp-files \
            --pref upload.speed=921600 \
            --pref build.path=$(BUILD) \
            --pref build.flash_freq=80m \
+           --pref other=true
+
+PORT    := /dev/cu.SLAB_USBtoUART
+
 
 default: $(BUILD) u m
 	# nothing

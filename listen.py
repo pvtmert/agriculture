@@ -6,7 +6,7 @@ from collections import namedtuple
 
 hexdump = lambda data, width=8, fmt="{hex:2X}": " ".join([
 		("\n{index:4X} | " + fmt).format(index=i, hex=(b))
-		if i%width is 0
+		if i%width == 0
 		else fmt.format(index=i, hex=(b))
 		for i, b in enumerate(data)
 	])
@@ -100,6 +100,7 @@ def main():
 	sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 32)
 	sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
 	sock.bind(("", PORT))
+	#sock.sendto(bytearray(256), ("224.0.0.1", 4321))
 	print("listening on: {}".format(PORT))
 	while True:
 		(data, addr) = sock.recvfrom(256)

@@ -15,7 +15,16 @@
 #include <rom/crc.h>
 #include <sys/time.h>
 
+#define DEVICE_TYPE_HELTEC 0x101
+#define DEVICE_TYPE_VSPI 0x991
+#define DEVICE_TYPE_HSPI 0x992
+
 //#include "font.h"
+
+#define DEVICE DEVICE_TYPE_HSPI
+#ifndef DEVICE
+#error CHANGE YOUR DEVICE TYPE ABOVE !
+#endif
 
 #include "debug.h"
 #include "data.h"
@@ -26,8 +35,23 @@
 #define PWR_SENSOR2 18
 #define PWR_SENSOR3 39 // input only
 
-#define LORA_SS   23 //18 //23
-#define LORA_RST  25 //14 //25
+#if DEVICE == DEVICE_TYPE_HELTEC
+#define LORA_SS  18
+#define LORA_RST 14
+#endif
+
+#if DEVICE == DEVICE_TYPE_VSPI
+SPIClass vspi(VSPI);
+#define LORA_SPI vspi
+#endif
+
+#if DEVICE == DEVICE_TYPE_HSPI
+#define LORA_SS  23
+#define LORA_RST 25
+SPIClass hspi(HSPI);
+#define LORA_SPI hspi
+#endif
+
 #define LORA_DIO  26
 #define LORA_SYNC 0xF3
 #define LORA_FREQ 433E6
@@ -38,10 +62,10 @@
 #define PIN_SENSOR0  35 // 35 // temp(air)
 #define PIN_SENSORVP 36
 
-#define PIN_SPI1 //  5
-#define PIN_SPI2 // 19
-#define PIN_SPI3 // 27
-#define PIN_SPI4 // 18
+// #define PIN_SPI1 //  5
+// #define PIN_SPI2 // 19
+// #define PIN_SPI3 // 27
+// #define PIN_SPI4 // 18 // LORA_SS
 
 #define PIN_MASTER 0 // masterswitch
 
@@ -91,7 +115,6 @@ static data_config_t cfg_runtime;
 static volatile device_mode_t device_mode;
 static volatile bool isr_state;
 
-SPIClass hspi(HSPI);
 const unsigned long device_identifier = (uint32_t) (ESP.getEfuseMac() >> 16);
 
 RTC_DATA_ATTR static unsigned long packet_counter = 0UL;
@@ -144,25 +167,74 @@ void lora_receive_handler(int size) {
 }
 
 void lora_send(void *data, size_t size) {
-	LoRa.beginPacket();
+	LoRa.beginPacket(true); // implicit header
 	LoRa.write((unsigned char*) data, size);
 	LoRa.endPacket(/*false*/);
 	LoRa.receive();
 	return;
 }
 
-void mode_master() {
-	char ssid[64];
-	sprintf(ssid, "agr-%08x", device_identifier);
-	WiFi.disconnect(true);
-	WiFi.softAP(ssid);
+void mode_master(const char *clssid) {
+	char apssid[64];
+	sprintf(apssid, "agr-%08x", device_identifier);
+	WiFi.disconnect(false, true);
+	WiFi.mode(WIFI_AP_STA);
+	//WiFi.enableAP(true);
+	WiFi.softAP(apssid);
 	udp.begin(NET_PORT);
-	ArduinoOTA.setPort(3232);
-	ArduinoOTA.setHostname(ssid);
-	ArduinoOTA.setPasswordHash("5d41402abc4b2a76b9719d911017c592");
+	ArduinoOTA.setPort(23232);
+	ArduinoOTA.setHostname(apssid);
+	ArduinoOTA.setPasswordHash("5d41402abc4b2a76b9719d911017c592"); // 'hello'
+	ArduinoOTA
+		.onStart([]() {
+			String type;
+			if (ArduinoOTA.getCommand() == U_FLASH)
+				type = "sketch";
+			else // U_SPIFFS
+				type = "filesystem";
+			Serial.println("Start updating " + type);
+		})
+		.onEnd([]() {
+			Serial.println("\nEnd");
+		})
+		.onProgress([](unsigned int progress, unsigned int total) {
+			Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+		})
+		.onError([](ota_error_t error) {
+			Serial.printf("Error[%u]: ", error);
+			switch(error) {
+				case OTA_AUTH_ERROR:
+					Serial.println("Auth Failed");
+					break;
+				case OTA_BEGIN_ERROR:
+					Serial.println("Begin Failed");
+					break;
+				case OTA_CONNECT_ERROR:
+					Serial.println("Connect Failed");
+					break;
+				case OTA_RECEIVE_ERROR:
+					Serial.println("Receive Failed");
+					break;
+				case OTA_END_ERROR:
+					Serial.println("End Failed");
+					break;
+			}
+		});
 	ArduinoOTA.begin();
 	MDNS.addService("lora", "udp", NET_PORT);
 	device_mode = DEVICE_MODE_MASTER;
+	if(clssid) {
+		//WiFi.enableSTA(true);
+		WiFi.begin(" WiSpotter");
+		WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
+			udp.begin(NET_PORT);
+		}, WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
+		while(WiFi.status() != WL_CONNECTED) {
+			delay(99);
+			yield();
+			continue;
+		}
+	}
 	return yield();
 }
 
@@ -220,7 +292,7 @@ void handle_wake(esp_sleep_wakeup_cause_t cause) {
 	return;
 }
 
-void prefs_load() {
+void prefs_load(void) {
 	prefs.begin("default");
 	if(prefs.getULong("id") != device_identifier) {
 		debug("pref", "identity did not match! using defaults");
@@ -235,7 +307,7 @@ void prefs_load() {
 	return;
 }
 
-void prefs_save() {
+void prefs_save(void) {
 	prefs.begin("default");
 	prefs.putULong ("id",        device_identifier        );
 	prefs.putULong ("save",      cfg_runtime.v1.save      );
@@ -248,14 +320,16 @@ void prefs_save() {
 }
 
 void setup(void) {
-	delay(999);
+	WiFi.mode(WIFI_OFF);
 	Serial.begin(115200);
 	MPRINTF("# %08llx\r\n", device_identifier);
 	handle_wake(esp_sleep_get_wakeup_cause());
 	pinMode(PIN_MASTER,   INPUT_PULLUP);
-	pinMode(LORA_DIO,     INPUT);
+	#if DEVICE != DEVICE_TYPE_HELTEC
+	pinMode(LORA_DIO,     INPUT );
 	pinMode(LORA_SS,      OUTPUT);
 	pinMode(PWR_LORA,     OUTPUT);
+	#endif
 	pinMode(PWR_SENSOR0,  OUTPUT);
 	pinMode(PWR_SENSOR1,  OUTPUT);
 	pinMode(PWR_SENSOR2,  OUTPUT);
@@ -266,7 +340,11 @@ void setup(void) {
 	pinMode(PIN_SENSOR2,  INPUT);
 	pinMode(PIN_SENSOR3,  INPUT);
 	pinMode(PIN_SENSORVP, INPUT);
-	digitalWrite(PWR_LORA,    HIGH);
+	#if DEVICE == DEVICE_TYPE_HELTEC
+	digitalWrite(PWR_LORA, LOW);
+	#else
+	digitalWrite(PWR_LORA, HIGH);
+	#endif
 	digitalWrite(PWR_SENSOR0, HIGH);
 	digitalWrite(PWR_SENSOR1, HIGH);
 	digitalWrite(PWR_SENSOR2, HIGH);
@@ -274,16 +352,32 @@ void setup(void) {
 	//digitalWrite(PWR_SENSORVP, HIGH);
 	attachInterrupt(PIN_MASTER, isr, RISING);
 	prefs_load();
-	hspi.begin();
+	#ifdef LORA_SPI
+	LORA_SPI.begin();
+	LoRa.setSPI(LORA_SPI);
+	#else
+	SPI.begin(5, 19, 27, LORA_SS);
+	debug("lora", "default spi mode (heltec) is used!");
 	//SPI.begin(PIN_SPI1, PIN_SPI2, PIN_SPI3, PIN_SPI4);
-	LoRa.crc();
-	LoRa.setSPI(hspi);
+	#endif
 	//LoRa.setSPIFrequency(8E6);
 	LoRa.setPins(LORA_SS, LORA_RST, LORA_DIO);
 	while(!LoRa.begin(LORA_FREQ)) {
-		debug("lora", "trying...");
+		if(isr_state) {
+			debug("lora", "skipping radio, going into emergency mode!");
+			return mode_master(" WiSpotter");
+			break;
+		}
+		debug("lora", ("trying to enable (lora) radio..."));
 		delay(999);
+		continue;
 	}
+	LoRa.enableCrc();
+	LoRa.setTxPower(17, PA_OUTPUT_PA_BOOST_PIN);
+	LoRa.setCodingRate4(5);
+	LoRa.setPreambleLength(8);
+	LoRa.setSpreadingFactor(7);
+	LoRa.setSignalBandwidth(62.5E3);
 	LoRa.setSyncWord(LORA_SYNC);
 	//LoRa.dumpRegisters(Serial);
 	LoRa.onReceive(lora_receive_handler);
@@ -293,7 +387,7 @@ void setup(void) {
 		if(isr_state || !digitalRead(PIN_MASTER)) {
 			debug("core", "masterswitch found!");
 			while(!digitalRead(PIN_MASTER)) yield();
-			return mode_master();
+			return mode_master(NULL);
 		}
 		delay(333);
 		continue;
