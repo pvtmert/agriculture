@@ -34,4 +34,4 @@ m monitor: wait
 	trap 'kill %1' 0 1 2 3 6 9 15; cat $(PORT) & stty -f $(PORT) raw $(BAUD); wait
 
 clean:
-	rm -rf $(BUILD)
+	rm -rf $(BUILD) __pycache__
