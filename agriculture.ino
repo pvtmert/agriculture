@@ -21,7 +21,7 @@
 
 //#include "font.h"
 
-#define DEVICE DEVICE_TYPE_HSPI
+#define DEVICE DEVICE_TYPE_HELTEC
 #ifndef DEVICE
 #error CHANGE YOUR DEVICE TYPE ABOVE !
 #endif
@@ -82,6 +82,7 @@ typedef struct {
 			size_t size;
 			short rssi;
 			float snr;
+			long freq;
 		} data;
 		unsigned char pad[16];
 	} meta;
@@ -138,6 +139,7 @@ void lora_receive_handler(int size) {
 				.size   = (unsigned) size,
 				.rssi   = (short) LoRa.packetRssi(),
 				.snr    = (float) LoRa.packetSnr(),
+				.freq   = (long) LoRa.packetFrequencyError(),
 			},
 		},
 	};
@@ -167,7 +169,11 @@ void lora_receive_handler(int size) {
 }
 
 void lora_send(void *data, size_t size) {
-	LoRa.beginPacket(true); // implicit header
+	while(!LoRa.beginPacket(false)) {
+		debug("lora/send", "waiting for radio...");
+		delay(99);
+		continue;
+	}
 	LoRa.write((unsigned char*) data, size);
 	LoRa.endPacket(/*false*/);
 	LoRa.receive();
@@ -238,7 +244,7 @@ void mode_master(const char *clssid) {
 	return yield();
 }
 
-void mode_slave() {
+void mode_slave(void) {
 	data_package_t pkg = make_package_wpayload(
 		make_header(
 			++packet_counter, device_identifier,
@@ -268,6 +274,7 @@ void mode_slave() {
 
 void IRAM_ATTR isr(void) {
 	debug("core", "isr handling: %c", isr_state ? 'T' : 'F');
+	//LoRa.dumpRegisters(Serial);
 	while(DEVICE_MODE_MASTER == device_mode); // hacky restart
 	isr_state = true;
 	return;
@@ -319,6 +326,11 @@ void prefs_save(void) {
 	return;
 }
 
+void lora_tx_handler(void) {
+	debug("lora", "tx is done!");
+	return;
+}
+
 void setup(void) {
 	WiFi.mode(WIFI_OFF);
 	Serial.begin(115200);
@@ -341,7 +353,7 @@ void setup(void) {
 	pinMode(PIN_SENSOR3,  INPUT);
 	pinMode(PIN_SENSORVP, INPUT);
 	#if DEVICE == DEVICE_TYPE_HELTEC
-	digitalWrite(PWR_LORA, LOW);
+	digitalWrite(PWR_LORA, HIGH); // was low
 	#else
 	digitalWrite(PWR_LORA, HIGH);
 	#endif
@@ -372,6 +384,7 @@ void setup(void) {
 		delay(999);
 		continue;
 	}
+	/*
 	LoRa.enableCrc();
 	LoRa.setTxPower(17, PA_OUTPUT_PA_BOOST_PIN);
 	LoRa.setCodingRate4(5);
@@ -380,6 +393,8 @@ void setup(void) {
 	LoRa.setSignalBandwidth(62.5E3);
 	LoRa.setSyncWord(LORA_SYNC);
 	//LoRa.dumpRegisters(Serial);
+	*/
+	//LoRa.onTxDone(lora_tx_handler);
 	LoRa.onReceive(lora_receive_handler);
 	LoRa.receive();
 	for(int i=0; i<4; i++) {
@@ -403,12 +418,10 @@ void setup(void) {
 	If it does, passes through lora. Wrapping with headers.
 */
 void udp_receive_handler(const int size) {
-	if(!size) {
-		return;
-	}
+	if(!size) return;
 	if(sizeof(data_config_t) != size) {
 		debug("udp", "wrong size to publish!");
-		udp.flush();
+		//udp.flush();
 		return;
 	}
 	debug("udp", "size:%d avail:%d", size, udp.available());
