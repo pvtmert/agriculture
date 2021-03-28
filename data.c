@@ -19,15 +19,16 @@ data_serialize_package(data_package_t *package) {
 }
 
 data_payload_t*
-data_make_payload_ptr(unsigned short _3, unsigned short _6, unsigned short _9,
-	unsigned short t, unsigned short e
+data_make_payload_ptr(
+	unsigned short _3, unsigned short _6, unsigned short _9,
+	unsigned short _t, unsigned short _e
 ) {
 	data_payload_t *payload = calloc(1, sizeof(data_payload_t));
 	payload->container.values.v1.sensors[0] = _3;
 	payload->container.values.v1.sensors[1] = _6;
 	payload->container.values.v1.sensors[2] = _9;
-	payload->container.values.v1.sensors[3] = t;
-	payload->container.values.v1.sensors[4] = e;
+	payload->container.values.v1.sensors[3] = _t;
+	payload->container.values.v1.sensors[4] = _e;
 	return payload;
 }
 
@@ -80,14 +81,14 @@ data_make_header_ptr(
 ) {
 	data_header_t *header = calloc(1, sizeof(data_header_t));
 	header->container.values.v1.destination = dst;
-	header->container.values.v1.identifier = id;
-	header->container.values.v1.timestamp = ts;
-	header->container.values.v1.checksum = chksum;
-	header->container.values.v1.origin = origin;
-	header->container.values.v1.length = length;
-	header->container.values.v1.ttl = ttl;
-	header->container.values.v1.netid = netid;
-	header->container.values.v1.flags = flags;
+	header->container.values.v1.identifier  = id;
+	header->container.values.v1.timestamp   = ts;
+	header->container.values.v1.checksum    = chksum;
+	header->container.values.v1.origin      = origin;
+	header->container.values.v1.length      = length;
+	header->container.values.v1.ttl         = ttl;
+	header->container.values.v1.netid       = netid;
+	header->container.values.v1.flags       = flags;
 	return header;
 }
 
@@ -182,10 +183,10 @@ make_config(
 			},
 		},
 		.v1 = {
-			.save  = save,
-			.mode  = mode,
-			.mesh  = mesh,
-			.sleep = sleep,
+			.save      = save,
+			.mode      = mode,
+			.mesh      = mesh,
+			.sleep     = sleep,
 			.timestamp = timestamp,
 		},
 	};

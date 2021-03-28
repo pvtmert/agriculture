@@ -30,10 +30,10 @@
 #include "data.h"
 
 #define PWR_LORA    21
-#define PWR_SENSOR0 22
-#define PWR_SENSOR1 19
-#define PWR_SENSOR2 18
-#define PWR_SENSOR3 39 // input only
+#define PWR_SENSOR_0 22
+#define PWR_SENSOR_1 19
+#define PWR_SENSOR_2 18
+#define PWR_SENSOR_3 39 // input only
 
 #if DEVICE == DEVICE_TYPE_HELTEC
 #define LORA_SS  18
@@ -56,11 +56,11 @@ SPIClass hspi(HSPI);
 #define LORA_SYNC 0xF3
 #define LORA_FREQ 433E6
 
-#define PIN_SENSOR1  27 // 27 // 30
-#define PIN_SENSOR2   4 // 4  // 60
-#define PIN_SENSOR3   5 // 5  // 90
-#define PIN_SENSOR0  35 // 35 // temp(air)
-#define PIN_SENSORVP 36
+#define PIN_SENSOR_1  27 // 27 // 30
+#define PIN_SENSOR_2   4 // 4  // 60
+#define PIN_SENSOR_3   5 // 5  // 90
+#define PIN_SENSOR_0  35 // 35 // temp(air)
+#define PIN_SENSOR_VP 36
 
 // #define PIN_SPI1 //  5
 // #define PIN_SPI2 // 19
@@ -75,9 +75,9 @@ SPIClass hspi(HSPI);
 
 #define SLEEP_TTL 10E6 // uS
 
-typedef struct {
-	union {
-		struct {
+typedef struct LoraPkg {
+	union LoraPkgMeta {
+		struct LoraPkgMetaData {
 			bool parsed;
 			size_t size;
 			short rssi;
@@ -86,7 +86,7 @@ typedef struct {
 		} data;
 		unsigned char pad[16];
 	} meta;
-	union {
+	union LoraPkgData{
 		data_package_t pkg;
 		void *ptr;
 	} data;
@@ -252,19 +252,19 @@ void mode_slave(void) {
 			DATA_HEADER_FLAG_NONE, NULL
 		),
 		make_payload(
-			analogRead(PIN_SENSOR1),
-			analogRead(PIN_SENSOR2),
-			analogRead(PIN_SENSOR3),
-			analogRead(PIN_SENSOR0),
-			analogRead(PIN_SENSORVP),
+			analogRead(PIN_SENSOR_1),
+			analogRead(PIN_SENSOR_2),
+			analogRead(PIN_SENSOR_3),
+			analogRead(PIN_SENSOR_0),
+			analogRead(PIN_SENSOR_VP),
 			0xABCD, NULL
 		),
 		NULL
 	);
-	digitalWrite(PWR_SENSOR0, LOW);
-	digitalWrite(PWR_SENSOR1, LOW);
-	digitalWrite(PWR_SENSOR2, LOW);
-	digitalWrite(PWR_SENSOR3, LOW);
+	digitalWrite(PWR_SENSOR_0, LOW);
+	digitalWrite(PWR_SENSOR_1, LOW);
+	digitalWrite(PWR_SENSOR_2, LOW);
+	digitalWrite(PWR_SENSOR_3, LOW);
 	debug("lora", "sending: %d", sizeof(pkg));
 	hexdump(&pkg, sizeof(pkg));
 	lora_send(&pkg, sizeof(pkg));
@@ -342,26 +342,26 @@ void setup(void) {
 	pinMode(LORA_SS,      OUTPUT);
 	pinMode(PWR_LORA,     OUTPUT);
 	#endif
-	pinMode(PWR_SENSOR0,  OUTPUT);
-	pinMode(PWR_SENSOR1,  OUTPUT);
-	pinMode(PWR_SENSOR2,  OUTPUT);
-	pinMode(PWR_SENSOR3,  OUTPUT);
-	//pinMode(PWR_SENSORVP, OUTPUT);
-	pinMode(PIN_SENSOR0,  INPUT);
-	pinMode(PIN_SENSOR1,  INPUT);
-	pinMode(PIN_SENSOR2,  INPUT);
-	pinMode(PIN_SENSOR3,  INPUT);
-	pinMode(PIN_SENSORVP, INPUT);
+	pinMode(PWR_SENSOR_0,  OUTPUT);
+	pinMode(PWR_SENSOR_1,  OUTPUT);
+	pinMode(PWR_SENSOR_2,  OUTPUT);
+	pinMode(PWR_SENSOR_3,  OUTPUT);
+	//pinMode(PWR_SENSOR_VP, OUTPUT);
+	pinMode(PIN_SENSOR_0,  INPUT);
+	pinMode(PIN_SENSOR_1,  INPUT);
+	pinMode(PIN_SENSOR_2,  INPUT);
+	pinMode(PIN_SENSOR_3,  INPUT);
+	pinMode(PIN_SENSOR_VP, INPUT);
 	#if DEVICE == DEVICE_TYPE_HELTEC
 	digitalWrite(PWR_LORA, HIGH); // was low
 	#else
 	digitalWrite(PWR_LORA, HIGH);
 	#endif
-	digitalWrite(PWR_SENSOR0, HIGH);
-	digitalWrite(PWR_SENSOR1, HIGH);
-	digitalWrite(PWR_SENSOR2, HIGH);
-	digitalWrite(PWR_SENSOR3, HIGH);
-	//digitalWrite(PWR_SENSORVP, HIGH);
+	digitalWrite(PWR_SENSOR_0, HIGH);
+	digitalWrite(PWR_SENSOR_1, HIGH);
+	digitalWrite(PWR_SENSOR_2, HIGH);
+	digitalWrite(PWR_SENSOR_3, HIGH);
+	//digitalWrite(PWR_SENSOR_VP, HIGH);
 	attachInterrupt(PIN_MASTER, isr, RISING);
 	prefs_load();
 	#ifdef LORA_SPI

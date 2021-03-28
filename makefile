@@ -1,19 +1,20 @@
 #!/usr/bin/env make -f
 
 #ARDUINO := open -Wnjgb cc.arduino.Arduino --args
-ARDUINO := /Volumes/data/Applications/Arduino.app/Contents/MacOS/Arduino
+ARDUINO := $(shell mdfind -name Arduino.app)/Contents/MacOS/Arduino
 BUILD   := $(wildcard /Volumes/tempramdisk*)/build
 BOARD   := esp32:esp32:esp32thing
-PORT    := /dev/cu.usbmodem002324124
+PORT    := /dev/OVERRIDE_YOUR_PORT_IN_COMMANDLINE
 BAUD    := 115200
 ARGS    := --verbose --preserve-temp-files \
-           --pref upload.speed=921600 \
-           --pref build.path=$(BUILD) \
-           --pref build.flash_freq=80m \
-           --pref other=true
-
-PORT    := /dev/cu.SLAB_USBtoUART
-
+           --pref upload.speed=921600   \
+           --pref build.boot=dio        \
+           --pref build.code_debug=3    \
+           --pref build.path=$(BUILD)   \
+           --pref build.flash_freq=80m  \
+           --pref build.flash_mode=dio  \
+           --pref build.f_cpu=80000000L \
+           --pref build.partitions=min_spiffs
 
 default: $(BUILD) u m
 	# nothing
